@@ -7,7 +7,7 @@ from scipy.io.wavfile import write
 load_dotenv()
 
 class Transcriber:
-    def __init__(self, channels=2, duration=1, fs=44100, audio_file_path="data/input.wav"):
+    def __init__(self, channels=2, duration=5, fs=44100, audio_file_path="data/input.wav"):
         self.dg=Deepgram(os.getenv("DEEPGRAM_API"))
         self.FS = fs
         self.DURATION = duration
@@ -29,8 +29,6 @@ class Transcriber:
         try:
             with open(self.audio_path, 'rb') as audio:
                 source = {'buffer': audio, 'mimetype': 'audio/wav'}
-                
-                # 'nova' is a good model for this, or 'general'
                 options = {
                     'punctuate': True,
                     'language': 'en',
@@ -45,7 +43,6 @@ class Transcriber:
             print(f"STT error: {e}")
             return None
         
-
 def main():
     trans = Transcriber()
     trans.record_audio() 
