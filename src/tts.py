@@ -10,8 +10,8 @@ load_dotenv()
 class SpeechCreate:
     def __init__(self):
         self.client=OpenAI(api_key=os.getenv("OPENAI_API"))
-        self.output_path = Path("../data").parent / "/output.mp3"
-        self.input_path=Path("../data").parent / "/input.wav"
+        self.output_path = Path("../data").parent / "output.mp3"
+        self.input_path=Path("../data").parent / "input.wav"
     
     def __generate_audio(self,text):
         print("Generating audio...")

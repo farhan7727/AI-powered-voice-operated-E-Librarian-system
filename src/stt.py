@@ -13,7 +13,7 @@ class Transcriber:
         self.FS = fs
         self.DURATION = duration
         self.CHANNELS = channels
-        self.audio_path=Path("../data").parent / "/input.wav"
+        self.audio_path=Path("../data").parent / "input.wav"
     
     def __record_audio(self):
         print(f"Recording for {self.DURATION} seconds... You may speak now.")
