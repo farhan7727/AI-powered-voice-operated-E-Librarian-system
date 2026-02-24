@@ -1,10 +1,18 @@
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel, Field
-import json
-from typing import Union
 import logging
+import json
+from pathlib import Path
+from typing import Union
+
+from dotenv import load_dotenv
+from fastapi import FastAPI, HTTPException
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel, Field
+
 from llm_query import LLM
 from db_manager import query_and_summary
+
+load_dotenv()
+
 
 logging.basicConfig(
     level=logging.INFO,
@@ -17,7 +25,7 @@ logger = logging.getLogger("e_librarian_backend")
 app = FastAPI(
     title="E-Librarian VAPI Backend",
     description="Simple single-tool backend for user request -> SQL -> DB fetch -> summary.",
-    version="1.1.0",
+    version="1.2.0",
 )
 
 llm = LLM()
@@ -89,13 +97,13 @@ def search_the_DB(request: VapiRequest):
         logger.info("Summary successfully generated")
 
         return {
-                "results": [
-    {
-      "toolCallId": tool_call.id,
-      "result": str(response)
-    }
-  ]
-}
+            "results": [
+                {
+                    "toolCallId": tool_call.id,
+                    "result": str(response),
+                }
+            ]
+        }
 
     except HTTPException:
         raise  # re-raise client errors unchanged

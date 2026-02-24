@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width: device-width, initial-scale=1.0" />
+    <title>Voice-Operated E-Librarian</title>
+    <style>
+      body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background: rgb(15, 23, 42);
+        background-image: linear-gradient(
+          140deg,
+          hsl(222deg 47% 11%) 0%,
+          hsl(217deg 33% 17%) 72%,
+          hsl(215deg 25% 27%) 100%
+        );
+        min-height: 100vh;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        color: #f8fafc;
+        text-align: center;
+      }
+      h1 {
+        margin-bottom: 10px;
+        font-size: 3rem;
+        color: #38bdf8;
+      }
+      p {
+        font-size: 1.2rem;
+        color: #94a3b8;
+        max-width: 600px;
+        line-height: 1.5;
+        margin-bottom: 30px;
+      }
+      
+      /* Chat Box Styles */
+      #chat-container {
+        width: 100%;
+        max-width: 500px;
+        height: 350px;
+        background: rgba(30, 41, 59, 0.7);
+        border: 1px solid #334155;
+        border-radius: 12px;
+        padding: 20px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        text-align: left;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+      }
+      
+      .msg {
+        padding: 10px 14px;
+        border-radius: 8px;
+        max-width: 80%;
+        word-wrap: break-word;
+        font-size: 0.95rem;
+      }
+      
+      .user-msg {
+        background-color: #0ea5e9;
+        color: white;
+        align-self: flex-end;
+        border-bottom-right-radius: 0;
+      }
+      
+      .assistant-msg {
+        background-color: #334155;
+        color: #cbd5e1;
+        align-self: flex-start;
+        border-bottom-left-radius: 0;
+      }
+
+      .system-msg {
+        align-self: center;
+        color: #64748b;
+        font-size: 0.85rem;
+        font-style: italic;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>AI E-Librarian</h1>
+    <p>
+      Click the button in the bottom right to speak with Elliot, our friendly AI librarian!
+    </p>
+
+    <div id="chat-container">
+      <div class="msg system-msg">Call disconnected. Waiting to start...</div>
+    </div>
+
+    <script>
+      var vapiInstance = null;
+      
+      // Keys pulled directly from your .env file
+      const assistant = "5a09eb51-04c4-4171-8139-c6f114a111c8"; 
+      const apiKey = "f0acd767-aec2-4e05-81cb-be9afdaebfe7"; 
+
+      const buttonConfig = {
+        position: "bottom-right", 
+        offset: "40px", 
+        width: "60px", 
+        height: "60px", 
+        idle: {
+          color: `rgb(14, 165, 233)`,
+          type: "pill", 
+          title: "Looking for a book?", 
+          subtitle: "Talk to the E-Librarian", 
+          icon: `https://unpkg.com/lucide-static@0.321.0/icons/library.svg`,
+        },
+        loading: {
+          color: `rgb(93, 124, 202)`,
+          type: "pill", 
+          title: "Connecting...", 
+          subtitle: "Please wait", 
+          icon: `https://unpkg.com/lucide-static@0.321.0/icons/loader-2.svg`,
+        },
+        active: {
+          color: `rgb(239, 68, 68)`,
+          type: "pill", 
+          title: "Librarian is listening...", 
+          subtitle: "Click to end chat", 
+          icon: `https://unpkg.com/lucide-static@0.321.0/icons/mic.svg`,
+        },
+      };
+
+      // Helper function to add messages to the UI
+      function appendMessage(role, text) {
+        const chatContainer = document.getElementById('chat-container');
+        const msgDiv = document.createElement('div');
+        
+        if (role === 'system') {
+          msgDiv.className = 'msg system-msg';
+          msgDiv.textContent = text;
+        } else {
+          msgDiv.className = role === 'user' ? 'msg user-msg' : 'msg assistant-msg';
+          msgDiv.textContent = (role === 'user' ? 'You: ' : 'Elliot: ') + text;
+        }
+        
+        chatContainer.appendChild(msgDiv);
+        // Auto-scroll to bottom
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+      }
+
+      (function (d, t) {
+        var g = document.createElement(t),
+          s = d.getElementsByTagName(t)[0];
+        g.src =
+          "https://cdn.jsdelivr.net/gh/VapiAI/html-script-tag@latest/dist/assets/index.js";
+        g.defer = true;
+        g.async = true;
+        s.parentNode.insertBefore(g, s);
+
+        g.onload = function () {
+          vapiInstance = window.vapiSDK.run({
+            apiKey: apiKey, 
+            assistant: assistant, 
+            config: buttonConfig, 
+          });
+
+          // Call state listeners
+          vapiInstance.on("call-start", () => {
+            document.getElementById('chat-container').innerHTML = ''; // Clear chat on new call
+            appendMessage('system', 'Call connected. Start speaking...');
+          });
+
+          vapiInstance.on("call-end", () => {
+            appendMessage('system', 'Call disconnected.');
+          });
+
+          // Listen for transcript messages to display what is being said
+          vapiInstance.on("message", (message) => {
+            // Only grab finalized transcripts to avoid spamming the chat box with partial guesses
+            if (message.type === 'transcript' && message.transcriptType === 'final') {
+              appendMessage(message.role, message.transcript);
+            }
+          });
+
+          vapiInstance.on("error", (e) => {
+            console.error("VAPI Error:", e);
+            appendMessage('system', 'Error: ' + (e.message || 'Something went wrong.'));
+          });
+        };
+      })(document, "script");
+    </script>
+  </body>
+</html>
