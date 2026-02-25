@@ -1,68 +1,89 @@
 # AI-Powered Voice-Operated E-Librarian System
 
-A voice-first librarian assistant that listens to a user query, converts speech to text, translates the request into SQL, fetches books from a local SQLite library database, summarizes the results with an LLM, and reads the answer aloud.
+🎥 **Demo Video:** [Watch on Google Drive](https://drive.google.com/file/d/1paX9TCm8gIrnN5gKq-W4xrp3SrLVyfC_/view?usp=sharing)
 
-The project currently supports two ways to run:
-- **CLI pipeline** (`src/main.py`)
-- **Gradio web demo** (`src/demo.py`)
+An end-to-end voice librarian assistant that turns spoken queries into database-backed book recommendations and conversational summaries.
 
-## Project Workflow (Step-by-Step)
-This is the exact runtime flow used in the code:
-This is the runtime flow used in the app logic:
+This repository now supports two product paths built on the same core retrieval/summarization logic:
 
-1. **Capture microphone audio** (`src/stt.py`)
-   - Records audio from the default microphone for a fixed duration.
-   - Saves the recording as a WAV file.
-
-2. **Speech-to-text transcription** (`src/stt.py`)
-   - Sends the recorded audio to Deepgram.
-   - Returns the transcribed user request as plain text.
-
-3. **Convert natural language to SQL** (`src/llm_query.py`)
-   - Sends user text and DB schema to OpenAI.
-   - Generates a SQLite query targeting the `books` table.
-
-4. **Execute SQL query on local database** (`src/db_manager.py`)
-   - Runs the generated query on `data/library.db`.
-   - Collects matching rows and column information.
-
-5. **Generate librarian-style summary** (`src/db_manager.py`)
-   - Sends query results to OpenAI chat completion.
-   - Produces a short conversational book summary.
-
-6. **Text-to-speech output** (`src/tts.py`)
-   - Converts summary text into speech audio (MP3) with OpenAI TTS.
-   - Plays the generated audio locally using `pygame`.
-   - Cleans up temporary input audio file.
-   - In CLI mode, plays the generated audio locally using `pygame`.
-   - In Gradio mode, returns the generated audio file to the UI player.
-
-7. **Orchestration entrypoint** (`src/main.py`)
-   - Calls all above modules in sequence from one `main()` function.
-7. **Orchestration entrypoints**
-   - `src/main.py`: runs the full flow in terminal.
-   - `src/demo.py`: runs the full flow behind a Gradio interface.
+1. **Local transcriber pipeline (`src/demo.py`)**  
+   `Speech → STT → SQL generation → DB fetch → LLM summary → TTS`
+2. **VAPI web assistant (`src/index.html` + `src/app.py`)**  
+   Browser/VAPI voice call → backend tool call → SQL generation → DB fetch → LLM summary
 
 ---
 
-## Repository Structure
+## Latest Project Evolution
+
+The implementation has evolved in two steps:
+
+- **Step 1: `demo.py` pipeline**
+  - Added a Gradio experience that records local microphone audio.
+  - Uses local STT + SQL + summary + TTS in one synchronous flow.
+  - Useful for quick local validation of the full audio loop.
+
+- **Step 2: VAPI assistant architecture (`index.html` + `app.py`)**
+  - Introduced a browser-based VAPI assistant UI (`index.html`) for a smoother call-style UX.
+  - Added FastAPI backend endpoint (`app.py`) to handle VAPI tool calls.
+  - Backend calls shared modules (`llm_query.py`, `db_manager.py`) to generate SQL and return summarized results.
+  - This approach optimizes the interaction model by offloading voice orchestration to VAPI while reusing existing retrieval logic.
+
+---
+
+## Core Modules
+
+- `src/stt.py` — Records audio and transcribes speech using Deepgram.
+- `src/llm_query.py` — Converts user intent into SQLite SQL for the `books` table.
+- `src/db_manager.py` — Executes SQL against `data/library.db` and generates a librarian-style summary with OpenAI.
+- `src/tts.py` — Synthesizes spoken response from summary text.
+- `src/demo.py` — Gradio orchestration for local end-to-end voice demo.
+- `src/app.py` — FastAPI backend endpoint for VAPI tool calls.
+- `src/index.html` — Browser UI integrating the VAPI web call assistant.
+- `src/main.py` — CLI orchestrator for the core pipeline.
+
+---
+
+## Architecture
+
+### A) Local Demo Flow (`demo.py`)
+
+1. Record microphone input.
+2. Transcribe speech to text.
+3. Convert text to SQL.
+4. Query SQLite books database.
+5. Summarize book results.
+6. Generate voice response audio.
+
+### B) VAPI Web Flow (`index.html` + `app.py`)
+
+1. User starts a call in the VAPI web widget.
+2. VAPI issues backend tool call (`find_books`) to FastAPI.
+3. FastAPI extracts `query` from tool arguments.
+4. Query text is converted to SQL via `llm_query.py`.
+5. SQL is executed and summarized via `db_manager.py`.
+6. Summary is returned in tool response payload to VAPI assistant.
+
+---
+
+## Project Structure
 
 ```text
 .
 ├── data/
-│   ├── books.json              # Raw/seed book records
-│   ├── library.db              # SQLite database queried by the assistant
-│   └── output.mp3              # Generated speech output (runtime artifact)
+│   ├── books.json
+│   └── library.db
 ├── ingestion/
-│   └── data_ingestion.ipynb    # Notebook used for data ingestion/preparation
+│   └── data_ingestion.ipynb
 ├── src/
-│   ├── main.py                 # Application entrypoint
-│   ├── main.py                 # CLI application entrypoint
-│   ├── demo.py                 # Gradio web demo entrypoint
-│   ├── stt.py                  # Speech-to-text (record + transcribe)
-│   ├── llm_query.py            # Natural language -> SQL conversion
-│   ├── db_manager.py           # SQL execution + summary generation
-│   └── tts.py                  # Text-to-speech generation + playback
+│   ├── app.py
+│   ├── db_manager.py
+│   ├── demo.py
+│   ├── index.html
+│   ├── llm_query.py
+│   ├── main.py
+│   ├── stt.py
+│   └── tts.py
+├── LICENSE
 └── README.md
 ```
 
@@ -71,109 +92,92 @@ This is the runtime flow used in the app logic:
 ## Prerequisites
 
 - Python 3.10+
-- Microphone input enabled
-- Audio playback support on your machine
+- Microphone access (for local STT/demo/CLI flows)
+- Audio playback support (for local TTS playback)
 - API keys:
-  - Deepgram API key (for STT)
-  - OpenAI API key (for SQL generation, summarization, and TTS)
+  - `DEEPGRAM_API`
+  - `OPENAI_API`
+- VAPI credentials (for `index.html` flow):
+  - `assistant` ID
+  - `apiKey`
 
 ---
 
-## Installation
+## Setup
 
-1. **Clone the repository**
-   ```bash
-   git clone <your-repo-url>
-   cd AI-powered-voice-operated-E-Librarian-system
-   ```
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip
+pip install numpy sounddevice "deepgram-sdk<3.0" python-dotenv scipy openai pygame gradio fastapi uvicorn pydantic
+```
 
-2. **Create and activate a virtual environment**
-   ```bash
-   python -m venv .venv
-   source .venv/bin/activate
-   ```
+Create `.env` in project root:
 
-3. **Install dependencies**
-   ```bash
-   pip install --upgrade pip
-   pip install numpy sounddevice "deepgram-sdk<3.0" python-dotenv scipy openai pygame
-   pip install numpy sounddevice "deepgram-sdk<3.0" python-dotenv scipy openai pygame gradio
-   ```
-
-4. **Create environment file**
-   ```bash
-   cp .env.example .env  # if example file exists
-   ```
-   If `.env.example` is not present, create `.env` manually.
-
-5. **Add required environment variables in `.env`**
-   ```env
-   DEEPGRAM_API=your_deepgram_api_key
-   OPENAI_API=your_openai_api_key
-   ```
+```env
+DEEPGRAM_API=your_deepgram_key
+OPENAI_API=your_openai_key
+```
 
 ---
 
-## How to Run
+## Run Options
 
-### Option 1: CLI pipeline
-From the project root:
+### 1) CLI Pipeline
 
 ```bash
 python src/main.py
 ```
 
-When you run it:
-- The app records your voice.
-- It transcribes your question.
-- It builds and executes a SQL query.
-- It summarizes matching books.
-- It speaks the answer aloud.
-### Option 2: Gradio web demo
-From the project root:
+### 2) Gradio Demo Pipeline
 
 ```bash
 python src/demo.py
 ```
 
-Then open the local URL printed by Gradio (commonly `http://127.0.0.1:7860`).
+Then open the printed Gradio URL (usually `http://127.0.0.1:7860`).
+
+### 3) VAPI Backend + Web UI
+
+Start backend (from `src/` directory):
+
+```bash
+cd src
+uvicorn app:app --host 0.0.0.0 --port 8000 --reload
+```
+
+Then configure `assistant` and `apiKey` constants in `src/index.html`, and open `index.html` in a browser.
+
+> Note: VAPI must be configured so its tool call maps to the backend endpoint `/LibrarianSearchResponse`.
 
 ---
 
-## Example Voice Queries
+## Example Queries
 
 - “Recommend me 3 fiction books.”
 - “Find books about machine learning.”
-- “Suggest some philosophy titles by famous authors.”
+- “Suggest philosophy books by well-known authors.”
 - “Give me nonfiction recommendations.”
-
----
-
-## Notes & Tips
-
-- Ensure your microphone is available before starting.
-- Keep your spoken request short and clear for better transcription quality.
-- The SQL generation logic is tuned around the `books` table schema in `src/llm_query.py`.
-- The local SQLite DB path is configured in `src/db_manager.py`.
 
 ---
 
 ## Troubleshooting
 
-- **No transcription output**
-  - Verify `DEEPGRAM_API` in `.env`.
-  - Check microphone permissions/device availability.
+- **Transcription fails**
+  - Check `DEEPGRAM_API`.
+  - Verify microphone permissions.
 
-- **No spoken output**
-  - Verify `OPENAI_API` in `.env`.
-  - Ensure audio playback works and `pygame` is installed.
+- **No summary / backend errors**
+  - Check `OPENAI_API`.
+  - Confirm `data/library.db` exists and is readable.
 
-- **Gradio UI not launching**
-  - Ensure `gradio` is installed in the active environment.
-  - Check the terminal for local URL/port binding errors.
+- **VAPI call works but no results**
+  - Verify tool name is `find_books`.
+  - Verify tool argument includes `query`.
+  - Verify backend endpoint path is `/LibrarianSearchResponse`.
 
-- **SQL/query issues**
-  - Validate that `data/library.db` exists.
-  - Check that the `books` table/schema matches the prompt assumptions.
+- **No audio playback in local flow**
+  - Ensure system audio output is working.
+  - Ensure `pygame` installed correctly.
 
----
+  ---
